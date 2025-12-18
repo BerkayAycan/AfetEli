@@ -1,5 +1,3 @@
-// lib/screens/auth/login_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,7 +13,7 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  // Giriş Yap Fonksiyonu
+  // Log in Function
   Future<void> _signIn() async {
     setState(() {
       _isLoading = true;
@@ -24,13 +22,13 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final supabase = Supabase.instance.client;
       
-      // Supabase Auth servisine istek atıyoruz
+      // Requesting to Supabase Auth service
       await supabase.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      // Başarılı olursa main.dart'taki dinleyici otomatik yönlendirecek.
+      // If Login is success redirect to listener of main.dart automaticly.
       if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Giriş Başarılı! Yönlendiriliyorsunuz...')),
@@ -43,7 +41,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(error.message), // Hata mesajını göster (örn: Yanlış şifre)
+            content: Text(error.message), // Shows the error message (Example : Wrong password)
             backgroundColor: Colors.red,
           ),
         );
@@ -69,7 +67,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E1E), // Tasarımdaki koyu renk
+      backgroundColor: const Color(0xFF1E1E1E), 
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -77,7 +75,7 @@ class _LoginPageState extends State<LoginPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo veya Başlık Yeri
+              //Header space
               const Text(
                 'AfetEli',
                 textAlign: TextAlign.center,
@@ -89,7 +87,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 40),
 
-              // E-mail Alanı
+              // E-mail space
               TextField(
                 controller: _emailController,
                 style: const TextStyle(color: Colors.white),
@@ -107,7 +105,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 16),
 
-              // Şifre Alanı
+              // Password space
               TextField(
                 controller: _passwordController,
                 obscureText: true,
@@ -126,7 +124,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 24),
 
-              // Giriş Butonu
+              // Login button
               ElevatedButton(
                 onPressed: _isLoading ? null : _signIn,
                 style: ElevatedButton.styleFrom(
@@ -145,7 +143,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 16),
 
-              // Kayıt Ol Yönlendirmesi
+              // Register direction to Register page
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

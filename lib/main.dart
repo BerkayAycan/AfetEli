@@ -1,13 +1,13 @@
-// lib/main.dart
+
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'utils/constants.dart'; // Sabitler
-
-// SAYFA IMPORTLARI (Hata buradaydı, şimdi düzeltildi)
+import 'utils/constants.dart'; 
 import 'screens/auth/login_page.dart';
 import 'screens/auth/role_choosing_page.dart';
-import 'screens/auth/register_page.dart'; // <-- İŞTE BU SATIR EKSİKTİ VEYA HATALIYDI
+import 'screens/auth/register_page.dart'; 
+import 'screens/requester/requester_home.dart';
+import 'screens/volunteer/volunteer_home.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,8 +39,10 @@ class AfetEliApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashPage(),
         '/login': (context) => const LoginPage(),
-        '/register': (context) => const RegisterPage(), // Artık bunu tanıyacak
+        '/register': (context) => const RegisterPage(), 
         '/role_choose': (context) => const RoleChoosingPage(),
+        '/requester_home': (context) => const RequesterHomepage(), 
+        '/volunteer_home': (context) => const VolunteerHomepage(),
       },
     );
   }

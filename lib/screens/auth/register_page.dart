@@ -11,7 +11,7 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  // --- KONTROLCÜLER (Girdileri Almak İçin) ---
+  // Controller
   final _firstNameController = TextEditingController(); // Ad
   final _lastNameController = TextEditingController();  // Soyad
   final _emailController = TextEditingController();
@@ -19,21 +19,21 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   
-  // Acil Durum Kişisi
+  // Emergency Person
   final _emergencyNameController = TextEditingController();
   final _emergencyPhoneController = TextEditingController();
   final _emergencyRelationController = TextEditingController();
 
-  // --- DEĞİŞKENLER ---
+  // Variable
   String? _selectedProfession; // Seçilen Meslek
   bool _isLoading = false;
   
-  // Onay Kutuları
+  // Privacy Policy Boxes
   bool _kvkkAccepted = false;
   bool _dataProcessingAccepted = false;
   bool _termsAccepted = false;
 
-  // Meslek Listesi (İstersen burayı çoğaltabilirsin)
+  // Occupation List
   final List<String> _professions = [
     'Doktor',
     'Hemşire',
@@ -44,9 +44,9 @@ class _RegisterPageState extends State<RegisterPage> {
     'Diğer'
   ];
 
-  // --- KAYIT FONKSİYONU ---
+  // Register Function
   Future<void> _signUp() async {
-    // 1. Basit Kontroller
+    // 1. Basic Controller
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Şifreler uyuşmuyor!")));
       return;
@@ -67,7 +67,7 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       final supabase = Supabase.instance.client;
 
-      // 2. Supabase Auth ile Kullanıcı Oluştur
+      // 2.  Create a user with Supabase Auth 
       final AuthResponse res = await supabase.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -76,7 +76,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final User? user = res.user;
 
       if (user != null) {
-        // 3. Detaylı Bilgileri 'users' Tablosuna Kaydet
+        // 3. Saving detailed Info's to 'users' table
         await supabase.from('users').insert({
           'id': user.id,
           'first_name': _firstNameController.text.trim(),
@@ -93,7 +93,7 @@ class _RegisterPageState extends State<RegisterPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Kayıt Başarılı! Giriş yapabilirsiniz.')),
           );
-          Navigator.pop(context); // Giriş ekranına dön
+          Navigator.pop(context); // Return Register Page
         }
       }
     } on AuthException catch (error) {
@@ -105,9 +105,9 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // --- TASARIM WIDGETLARI ---
+  // DESIGN WIDGETS
   
-  // Standart Yazı Kutusu Tasarımı
+  // Standart textbox design
   Widget _buildTextField({
     required TextEditingController controller, 
     required String hint, 
@@ -122,10 +122,10 @@ class _RegisterPageState extends State<RegisterPage> {
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           filled: true,
-          fillColor: Colors.grey[800], // Koyu gri arka plan
+          fillColor: Colors.grey[800], 
           hintText: hint,
           hintStyle: TextStyle(color: Colors.grey[400]),
-          suffixIcon: icon != null ? Icon(icon, color: Colors.grey) : null, // Sağ tarafta ikon (X gibi)
+          suffixIcon: icon != null ? Icon(icon, color: Colors.grey) : null, 
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
@@ -136,7 +136,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Onay Kutusu Satırı
+  // Accept Box Design
   Widget _buildCheckboxRow(String text, bool value, Function(bool?) onChanged) {
     return Row(
       children: [
@@ -170,7 +170,7 @@ class _RegisterPageState extends State<RegisterPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Üstteki Tab Bar Görünümlü Başlık (Görsel Amaçlı)
+            // Header seems like Tab Bar on top
             Container(
               decoration: BoxDecoration(
                 color: Colors.grey[800],
@@ -183,7 +183,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE0E0E0), // Açık renk aktif tab
+                        color: const Color(0xFFE0E0E0), 
                         borderRadius: BorderRadius.circular(25),
                       ),
                       child: const Center(child: Text("Kayıt ol", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))),
@@ -194,7 +194,7 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             const SizedBox(height: 20),
 
-            // --- KİŞİSEL BİLGİLER ---
+            // PERSONAL INFOS
             Row(
               children: [
                 Expanded(child: _buildTextField(controller: _firstNameController, hint: "Ad", icon: Icons.cancel_outlined)),
@@ -211,11 +211,11 @@ class _RegisterPageState extends State<RegisterPage> {
             const Text("Meslek", style: TextStyle(color: Colors.white, fontSize: 16)),
             const SizedBox(height: 5),
             
-            // --- MESLEK DROPDOWN ---
+            // OCCUPATION DROPDOWN
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.white, // Tasarımda beyaz görünüyor
+                color: Colors.white, 
                 borderRadius: BorderRadius.circular(8),
               ),
               child: DropdownButtonHideUnderline(
@@ -243,7 +243,7 @@ class _RegisterPageState extends State<RegisterPage> {
             const Text("Afet Anında Ulaşılacak Kişi", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
 
-            // --- ACİL DURUM KİŞİSİ ---
+            // PERSON OF EMERGENCY
             Row(
               children: [
                 Expanded(child: _buildTextField(controller: _emergencyNameController, hint: "Ad Soyad", icon: Icons.cancel_outlined)),
@@ -255,22 +255,22 @@ class _RegisterPageState extends State<RegisterPage> {
 
             const SizedBox(height: 10),
 
-            // --- ONAY KUTULARI ---
+            // CONFIRMATION BOX
             _buildCheckboxRow("Kişisel Verilerimin İşlenmesini Kabul Ediyorum", _dataProcessingAccepted, (v) => setState(() => _dataProcessingAccepted = v!)),
             _buildCheckboxRow("KVKK Aydınlatma Metni'ni onaylıyorum", _kvkkAccepted, (v) => setState(() => _kvkkAccepted = v!)),
             _buildCheckboxRow("Hizmet Şartları'nı onaylıyorum", _termsAccepted, (v) => setState(() => _termsAccepted = v!)),
 
             const SizedBox(height: 20),
 
-            // --- KAYIT OL BUTONU ---
+            // REGISTER BUTTON
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _signUp,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF673AB7), // Mor renk
+                  backgroundColor: const Color(0xFF673AB7), 
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)), // Oval buton
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)), 
                 ),
                 child: _isLoading 
                   ? const CircularProgressIndicator(color: Colors.white)
