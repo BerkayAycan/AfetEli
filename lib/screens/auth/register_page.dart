@@ -1,0 +1,286 @@
+// lib/screens/auth/register_page.dart
+
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  // --- KONTROLCÜLER (Girdileri Almak İçin) ---
+  final _firstNameController = TextEditingController(); // Ad
+  final _lastNameController = TextEditingController();  // Soyad
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  
+  // Acil Durum Kişisi
+  final _emergencyNameController = TextEditingController();
+  final _emergencyPhoneController = TextEditingController();
+  final _emergencyRelationController = TextEditingController();
+
+  // --- DEĞİŞKENLER ---
+  String? _selectedProfession; // Seçilen Meslek
+  bool _isLoading = false;
+  
+  // Onay Kutuları
+  bool _kvkkAccepted = false;
+  bool _dataProcessingAccepted = false;
+  bool _termsAccepted = false;
+
+  // Meslek Listesi (İstersen burayı çoğaltabilirsin)
+  final List<String> _professions = [
+    'Doktor',
+    'Hemşire',
+    'Mühendis',
+    'Öğretmen',
+    'Arama Kurtarma Personeli',
+    'Öğrenci',
+    'Diğer'
+  ];
+
+  // --- KAYIT FONKSİYONU ---
+  Future<void> _signUp() async {
+    // 1. Basit Kontroller
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Şifreler uyuşmuyor!")));
+      return;
+    }
+    if (!_kvkkAccepted || !_dataProcessingAccepted || !_termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lütfen tüm sözleşmeleri onaylayın.")));
+      return;
+    }
+    if (_selectedProfession == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lütfen mesleğinizi seçin.")));
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final supabase = Supabase.instance.client;
+
+      // 2. Supabase Auth ile Kullanıcı Oluştur
+      final AuthResponse res = await supabase.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      final User? user = res.user;
+
+      if (user != null) {
+        // 3. Detaylı Bilgileri 'users' Tablosuna Kaydet
+        await supabase.from('users').insert({
+          'id': user.id,
+          'first_name': _firstNameController.text.trim(),
+          'last_name': _lastNameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'phone_number': _phoneController.text.trim(),
+          'profession': _selectedProfession,
+          'emergency_contact_name': _emergencyNameController.text.trim(),
+          'emergency_contact_phone': _emergencyPhoneController.text.trim(),
+          'emergency_contact_relation': _emergencyRelationController.text.trim(),
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Kayıt Başarılı! Giriş yapabilirsiniz.')),
+          );
+          Navigator.pop(context); // Giriş ekranına dön
+        }
+      }
+    } on AuthException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message), backgroundColor: Colors.red));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $error'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // --- TASARIM WIDGETLARI ---
+  
+  // Standart Yazı Kutusu Tasarımı
+  Widget _buildTextField({
+    required TextEditingController controller, 
+    required String hint, 
+    bool isPassword = false,
+    IconData? icon
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.grey[800], // Koyu gri arka plan
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey[400]),
+          suffixIcon: icon != null ? Icon(icon, color: Colors.grey) : null, // Sağ tarafta ikon (X gibi)
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Onay Kutusu Satırı
+  Widget _buildCheckboxRow(String text, bool value, Function(bool?) onChanged) {
+    return Row(
+      children: [
+        Checkbox(
+          value: value, 
+          onChanged: onChanged,
+          activeColor: const Color(0xFF673AB7), // Mor renk
+          checkColor: Colors.white,
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1E1E1E),
+      appBar: AppBar(
+        title: const Text('Kayıt Ol'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Üstteki Tab Bar Görünümlü Başlık (Görsel Amaçlı)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: Row(
+                children: [
+                  Expanded(child: TextButton(onPressed: () => Navigator.pop(context), child: const Text("Giriş", style: TextStyle(color: Colors.grey)))),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE0E0E0), // Açık renk aktif tab
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: const Center(child: Text("Kayıt ol", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // --- KİŞİSEL BİLGİLER ---
+            Row(
+              children: [
+                Expanded(child: _buildTextField(controller: _firstNameController, hint: "Ad", icon: Icons.cancel_outlined)),
+                const SizedBox(width: 10),
+                Expanded(child: _buildTextField(controller: _lastNameController, hint: "Soyad", icon: Icons.cancel_outlined)),
+              ],
+            ),
+            _buildTextField(controller: _emailController, hint: "e-mail", icon: Icons.cancel_outlined),
+            _buildTextField(controller: _phoneController, hint: "Telefon Numarası", icon: Icons.cancel_outlined),
+            _buildTextField(controller: _passwordController, hint: "Şifre", isPassword: true, icon: Icons.cancel_outlined),
+            _buildTextField(controller: _confirmPasswordController, hint: "Şifre Onayı", isPassword: true, icon: Icons.cancel_outlined),
+
+            const SizedBox(height: 10),
+            const Text("Meslek", style: TextStyle(color: Colors.white, fontSize: 16)),
+            const SizedBox(height: 5),
+            
+            // --- MESLEK DROPDOWN ---
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white, // Tasarımda beyaz görünüyor
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedProfession,
+                  hint: const Text("Meslek Seçiniz"),
+                  isExpanded: true,
+                  items: _professions.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedProfession = newValue;
+                    });
+                  },
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+            const Divider(color: Colors.grey),
+            const Text("Afet Anında Ulaşılacak Kişi", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+
+            // --- ACİL DURUM KİŞİSİ ---
+            Row(
+              children: [
+                Expanded(child: _buildTextField(controller: _emergencyNameController, hint: "Ad Soyad", icon: Icons.cancel_outlined)),
+                const SizedBox(width: 10),
+                Expanded(child: _buildTextField(controller: _emergencyPhoneController, hint: "Telefon", icon: Icons.cancel_outlined)),
+              ],
+            ),
+            _buildTextField(controller: _emergencyRelationController, hint: "Yakınlık Derecesi (Örn. Anne)", icon: Icons.cancel_outlined),
+
+            const SizedBox(height: 10),
+
+            // --- ONAY KUTULARI ---
+            _buildCheckboxRow("Kişisel Verilerimin İşlenmesini Kabul Ediyorum", _dataProcessingAccepted, (v) => setState(() => _dataProcessingAccepted = v!)),
+            _buildCheckboxRow("KVKK Aydınlatma Metni'ni onaylıyorum", _kvkkAccepted, (v) => setState(() => _kvkkAccepted = v!)),
+            _buildCheckboxRow("Hizmet Şartları'nı onaylıyorum", _termsAccepted, (v) => setState(() => _termsAccepted = v!)),
+
+            const SizedBox(height: 20),
+
+            // --- KAYIT OL BUTONU ---
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _signUp,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF673AB7), // Mor renk
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)), // Oval buton
+                ),
+                child: _isLoading 
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('Kayıt Ol', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
