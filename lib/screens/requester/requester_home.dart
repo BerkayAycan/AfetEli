@@ -1,5 +1,3 @@
-// lib/screens/requester/requester_home.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; 
 import 'package:geolocator/geolocator.dart';
@@ -27,7 +25,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
     _getProfile();        
   }
 
-  // --- 1. PROFİL BİLGİSİ ---
+  // --- 1-)Profile Page ---
   Future<void> _getProfile() async {
     try {
       final userId = supabase.auth.currentUser!.id;
@@ -47,7 +45,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
     }
   }
 
-  // --- 2. KONUM BULMA (WEB & MOBİL UYUMLU) ---
+  // --- 2--Finding the position ---
   Future<void> _determinePosition() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -68,23 +66,21 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
     }
 
     try {
-      // Koordinatı al
+      // Takes the position
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       
-      // --- WEB KONTROLÜ (Adres çevirme Web'de çalışmaz) ---
+      // --- WEB Control (Adress transition doesnt work on Web) ---
       if (kIsWeb) {
         if(mounted) {
           setState(() {
-            // Web'de sadece koordinat gösteriyoruz (Hatayı önlemek için)
+            // Just coordination  seems ob web cause of proventing to error
             _currentAddress = "${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}";
             _isLocationLoading = false;
           });
         }
         return; 
       }
-      // ----------------------------------------------------
-
-      // Mobildeysek Adrese Çevir
+      // If mobile version is active show the location name
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
@@ -96,7 +92,6 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
         }
       }
     } catch (e) {
-      // Hata alırsak (Örn: Web'de geocoding çalışmazsa buraya düşerdi, artık düşmeyecek)
       if(mounted) setState(() { _currentAddress = "Konum Alınamadı"; _isLocationLoading = false; });
     }
   }
@@ -134,7 +129,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
               ),
             ),
 
-            // HOŞGELDİNİZ MESAJI
+            // Welcome message
             Container(
               width: double.infinity,
               margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -148,7 +143,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
             ),
             const SizedBox(height: 10),
 
-            // KONUM BİLGİSİ
+            // Location info
             Container(
               width: double.infinity,
               margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -164,7 +159,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
             ),
             const SizedBox(height: 10),
 
-            // LİSTE ALANI
+            // List space
             Expanded(
               child: Container(
                 decoration: const BoxDecoration(
@@ -200,7 +195,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
                       const Text("Geçmiş Yardım Taleplerim", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 10),
 
-                      // CANLI VERİ LİSTESİ
+                      // live data list
                       Expanded(
                         child: userId == null 
                         ? const Center(child: Text("Oturum Hatası")) 
