@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; 
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart'; 
-
+import '../common/profile_page.dart';
+import '../common/settings_page.dart';
 class RequesterHomepage extends StatefulWidget {
   const RequesterHomepage({super.key});
 
@@ -100,153 +100,35 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
   Widget build(BuildContext context) {
     final userId = supabase.auth.currentUser?.id;
 
+    // List of pages
+    // 0: Profile, 1: Homepage, 2: Settings
+    List<Widget> pages = [
+      const ProfilePage(),
+      _buildHomeBody(userId),
+      const SettingsPage(),
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFF2C2C2C),
+      
       body: SafeArea(
-        child: Column(
-          children: [
-            // HEADER
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(20)),
-                    child: const Text("Rol: Afetzede", style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  InkWell(
-                    onTap: () => Navigator.pushReplacementNamed(context, '/role_choose'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(20)),
-                      child: const Row(children: [Icon(Icons.swap_horiz, size: 18), SizedBox(width: 4), Text("Rolü değiştir")]),
-                    ),
-                  ),
-                  CircleAvatar(backgroundColor: Colors.grey[600], child: const Icon(Icons.notifications_none, color: Colors.black))
-                ],
-              ),
-            ),
-
-            // Welcome message
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.grey[500], borderRadius: BorderRadius.circular(30)),
-              child: Text(
-                "Hoş geldiniz, $_userName!",
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Location info
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 12),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: const Color(0xFF424242), borderRadius: BorderRadius.circular(40)),
-              child: Column(
-                children: [
-                   _isLocationLoading
-                      ? const Text("Konum Bulunuyor...", style: TextStyle(color: Colors.white))
-                      : Text("Konum : $_currentAddress (Otomatik)", style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // List space
-            Expanded(
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF3E3B3B),
-                  borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [Icon(Icons.mail_outline, color: Colors.white), SizedBox(width: 8), Text("Yardım Taleplerim", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))],
-                      ),
-                      const SizedBox(height: 15),
-                      
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                             Navigator.pushNamed(context, '/create_request');
-                          },
-                          icon: const Icon(Icons.add, color: Colors.white),
-                          label: const Text("Yeni Yardım Talebi Oluştur", style: TextStyle(fontSize: 16)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey[600],
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Text("Geçmiş Yardım Taleplerim", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 10),
-
-                      // live data list
-                      Expanded(
-                        child: userId == null 
-                        ? const Center(child: Text("Oturum Hatası")) 
-                        : StreamBuilder<List<Map<String, dynamic>>>(
-                            stream: supabase
-                                .from('requests')
-                                .stream(primaryKey: ['id'])
-                                .eq('created_by', userId) 
-                                .order('created_at', ascending: false), 
-                            builder: (context, snapshot) {
-                              if (snapshot.hasError) {
-                                return Center(child: Text("Hata: ${snapshot.error}", style: const TextStyle(color: Colors.white)));
-                              }
-                              if (!snapshot.hasData) {
-                                return const Center(child: CircularProgressIndicator());
-                              }
-                              
-                              final requests = snapshot.data!;
-
-                              if (requests.isEmpty) {
-                                return const Center(child: Text("Henüz bir yardım talebiniz yok.", style: TextStyle(color: Colors.grey)));
-                              }
-
-                              return ListView.builder(
-                                itemCount: requests.length,
-                                itemBuilder: (context, index) {
-                                  final req = requests[index];
-                                  return _buildRequestCard(
-                                    req['category'] ?? 'Bilinmiyor',
-                                    req['status'] ?? 'pending',
-                                    req['created_at'] ?? '',
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: pages,
         ),
       ),
+
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.grey[600],
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black54,
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        type: BottomNavigationBarType.fixed, 
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Hesabım'),
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Anasayfa'),
@@ -304,6 +186,145 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
           )
         ],
       ),
+    );
+  }
+  Widget _buildHomeBody(String? userId) {
+    return Column(
+      children: [
+        // HEADER
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(20)),
+                child: const Text("Rol: Afetzede", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              InkWell(
+                onTap: () => Navigator.pushReplacementNamed(context, '/role_choose'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(20)),
+                  child: const Row(children: [Icon(Icons.swap_horiz, size: 18), SizedBox(width: 4), Text("Rolü değiştir")]),
+                ),
+              ),
+              CircleAvatar(backgroundColor: Colors.grey[600], child: const Icon(Icons.notifications_none, color: Colors.black))
+            ],
+          ),
+        ),
+
+        // Welcome Message 
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Colors.grey[500], borderRadius: BorderRadius.circular(30)),
+          child: Text(
+            "Hoş geldiniz, $_userName!",
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Location Info
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: const Color(0xFF424242), borderRadius: BorderRadius.circular(40)),
+          child: Column(
+            children: [
+               _isLocationLoading
+                  ? const Text("Konum Bulunuyor...", style: TextStyle(color: Colors.white))
+                  : Text("Konum : $_currentAddress (Otomatik)", style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // List Space
+        Expanded(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF3E3B3B),
+              borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [Icon(Icons.mail_outline, color: Colors.white), SizedBox(width: 8), Text("Yardım Taleplerim", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))],
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                         Navigator.pushNamed(context, '/create_request');
+                      },
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text("Yeni Yardım Talebi Oluştur", style: TextStyle(fontSize: 16)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[600],
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text("Geçmiş Yardım Taleplerim", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+
+                  // List
+                  Expanded(
+                    child: userId == null 
+                    ? const Center(child: Text("Oturum Hatası")) 
+                    : StreamBuilder<List<Map<String, dynamic>>>(
+                        stream: supabase
+                            .from('requests')
+                            .stream(primaryKey: ['id'])
+                            .eq('created_by', userId) 
+                            .order('created_at', ascending: false), 
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Center(child: Text("Hata: ${snapshot.error}", style: const TextStyle(color: Colors.white)));
+                          }
+                          if (!snapshot.hasData) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          
+                          final requests = snapshot.data!;
+
+                          if (requests.isEmpty) {
+                            return const Center(child: Text("Henüz bir yardım talebiniz yok.", style: TextStyle(color: Colors.grey)));
+                          }
+
+                          return ListView.builder(
+                            itemCount: requests.length,
+                            itemBuilder: (context, index) {
+                              final req = requests[index];
+                              return _buildRequestCard(
+                                req['category'] ?? 'Bilinmiyor',
+                                req['status'] ?? 'pending',
+                                req['created_at'] ?? '',
+                              );
+                            },
+                          );
+                        },
+                      ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

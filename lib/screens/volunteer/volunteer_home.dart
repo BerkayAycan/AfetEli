@@ -1,10 +1,10 @@
-// lib/screens/volunteer/volunteer_home.dart
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart'; 
-import 'request_detail_page.dart'; 
+import 'request_detail_page.dart';
+import '../common/profile_page.dart';
+import '../common/settings_page.dart';
 
 class VolunteerHomepage extends StatefulWidget {
   const VolunteerHomepage({super.key});
@@ -25,16 +25,16 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
     _getProfile();
   }
 
-  // Profil Adını Çek
+  // Get the Profile name
   Future<void> _getProfile() async {
     try {
       final userId = supabase.auth.currentUser!.id;
       final data = await supabase.from('users').select('first_name, last_name').eq('id', userId).single();
       if (mounted) setState(() => _userName = "${data['first_name']} ${data['last_name']}");
-    } catch (e) { /* Sessiz hata */ }
+    } catch (e) { /* S */ }
   }
 
-  // Konumu Bul
+  // Find location
   Future<void> _determinePosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -51,124 +51,33 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
 
   @override
   Widget build(BuildContext context) {
+    // Sayfaların Listesi
+    List<Widget> pages = [
+      const ProfilePage(),       
+      _buildVolunteerBody(),     
+      const SettingsPage(),      
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFF2C2C2C),
+      
+      
       body: SafeArea(
-        child: Column(
-          children: [
-            // --- HEADER ---
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                   _buildHeaderChip("Rol: Gönüllü"),
-                   InkWell(
-                    onTap: () => Navigator.pushReplacementNamed(context, '/role_choose'),
-                    child: _buildHeaderChip("Rolü değiştir", icon: Icons.swap_horiz),
-                   ),
-                   CircleAvatar(backgroundColor: Colors.grey[600], child: const Icon(Icons.notifications_none, color: Colors.black))
-                ],
-              ),
-            ),
-
-            // Welcome message
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.grey[500], borderRadius: BorderRadius.circular(30)),
-              child: Text("Hoş geldiniz, $_userName!", textAlign: TextAlign.center, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
-            const SizedBox(height: 10),
-
-            // Location and Search 
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 12),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: const Color(0xFF424242), borderRadius: BorderRadius.circular(40)),
-              child: Column(
-                children: [
-                  Text("Konum : ${_currentPosition != null ? 'Konum Alındı' : 'Konum Aranıyor...'}", style: const TextStyle(color: Colors.white, fontSize: 15)),
-                  const SizedBox(height: 10),
-                  TextField(
-                    decoration: InputDecoration(
-                      hintText: "Yardım Çağrısı Ara",
-                      filled: true,
-                      fillColor: Colors.grey[600],
-                      prefixIcon: const Icon(Icons.search, color: Colors.white),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // List Area
-            Expanded(
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF3E3B3B),
-                  borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [Icon(Icons.mail_outline, color: Colors.white), SizedBox(width: 8), Text("Yardım Çağrıları", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))],
-                      ),
-                      const SizedBox(height: 15),
-
-                      Expanded(
-                        child: StreamBuilder<List<Map<String, dynamic>>>(
-                          stream: supabase.from('requests').stream(primaryKey: ['id']).eq('status', 'pending').order('created_at', ascending: false),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                            final requests = snapshot.data!;
-                            if (requests.isEmpty) return const Center(child: Text("Bekleyen yardım çağrısı yok.", style: TextStyle(color: Colors.grey)));
-
-                            return ListView.builder(
-                              itemCount: requests.length,
-                              itemBuilder: (context, index) {
-                                final req = requests[index];
-                                String distanceText = "...";
-                                if (_currentPosition != null && req['lat'] != null && req['lng'] != null) {
-                                  double distanceInMeters = Geolocator.distanceBetween(
-                                    _currentPosition!.latitude, _currentPosition!.longitude,
-                                    req['lat'], req['lng']
-                                  );
-                                  if (distanceInMeters > 1000) {
-                                    distanceText = "${(distanceInMeters / 1000).toStringAsFixed(1)} km";
-                                  } else {
-                                    distanceText = "${distanceInMeters.toStringAsFixed(0)} m";
-                                  }
-                                }
-
-                                return _buildVolunteerCard(req, distanceText);
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: pages,
         ),
       ),
+      
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.grey[600],
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black54,
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        type: BottomNavigationBarType.fixed,
+        onTap: (index) {
+          setState(() => _selectedIndex = index);
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Hesabım'),
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Anasayfa'),
@@ -266,6 +175,113 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(20)),
       child: Row(children: [if (icon != null) Icon(icon, size: 18), if (icon != null) const SizedBox(width: 4), Text(text ?? "", style: const TextStyle(fontWeight: FontWeight.bold))]),
+    );
+  }
+  Widget _buildVolunteerBody() {
+    return Column(
+      children: [
+        // HEADER
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+               _buildHeaderChip("Rol: Gönüllü"),
+               InkWell(
+                onTap: () => Navigator.pushReplacementNamed(context, '/role_choose'),
+                child: _buildHeaderChip("Rolü değiştir", icon: Icons.swap_horiz),
+               ),
+               CircleAvatar(backgroundColor: Colors.grey[600], child: const Icon(Icons.notifications_none, color: Colors.black))
+            ],
+          ),
+        ),
+
+        // Welcome message
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Colors.grey[500], borderRadius: BorderRadius.circular(30)),
+          child: Text("Hoş geldiniz, $_userName!", textAlign: TextAlign.center, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+        ),
+        const SizedBox(height: 10),
+
+        // LLocation and search button
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: const Color(0xFF424242), borderRadius: BorderRadius.circular(40)),
+          child: Column(
+            children: [
+              Text("Konum : ${_currentPosition != null ? 'Konum Alındı' : 'Konum Aranıyor...'}", style: const TextStyle(color: Colors.white, fontSize: 15)),
+              const SizedBox(height: 10),
+              TextField(
+                decoration: InputDecoration(
+                  hintText: "Yardım Çağrısı Ara",
+                  filled: true,
+                  fillColor: Colors.grey[600],
+                  prefixIcon: const Icon(Icons.search, color: Colors.white),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // List space
+        Expanded(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF3E3B3B),
+              borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [Icon(Icons.mail_outline, color: Colors.white), SizedBox(width: 8), Text("Yardım Çağrıları", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))],
+                  ),
+                  const SizedBox(height: 15),
+
+                  Expanded(
+                    child: StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: supabase.from('requests').stream(primaryKey: ['id']).eq('status', 'pending').order('created_at', ascending: false),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                        final requests = snapshot.data!;
+                        if (requests.isEmpty) return const Center(child: Text("Bekleyen yardım çağrısı yok.", style: TextStyle(color: Colors.grey)));
+
+                        return ListView.builder(
+                          itemCount: requests.length,
+                          itemBuilder: (context, index) {
+                            final req = requests[index];
+                            String distanceText = "...";
+                            if (_currentPosition != null && req['lat'] != null && req['lng'] != null) {
+                              double distanceInMeters = Geolocator.distanceBetween(
+                                _currentPosition!.latitude, _currentPosition!.longitude,
+                                req['lat'], req['lng']
+                              );
+                              distanceText = distanceInMeters > 1000 
+                                  ? "${(distanceInMeters / 1000).toStringAsFixed(1)} km" 
+                                  : "${distanceInMeters.toStringAsFixed(0)} m";
+                            }
+                            return _buildVolunteerCard(req, distanceText);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

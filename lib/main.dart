@@ -7,6 +7,8 @@ import 'screens/auth/register_page.dart';
 import 'screens/requester/requester_home.dart';
 import 'screens/volunteer/volunteer_home.dart';
 import 'screens/requester/create_request_page.dart';
+import 'screens/common/profile_page.dart';
+import 'screens/common/settings_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +45,8 @@ class AfetEliApp extends StatelessWidget {
         '/requester_home': (context) => const RequesterHomepage(), 
         '/volunteer_home': (context) => const VolunteerHomepage(),
         '/create_request': (context) => const CreateRequestPage(),
+        '/profile': (context) => const ProfilePage(),
+        '/settings': (context) => const SettingsPage(),
       },
     );
   }
