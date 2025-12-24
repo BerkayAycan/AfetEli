@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; 
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart'; 
 import '../common/profile_page.dart';
 import '../common/settings_page.dart';
+import 'create_request_page.dart';
+
 class RequesterHomepage extends StatefulWidget {
   const RequesterHomepage({super.key});
 
@@ -18,11 +21,121 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
   bool _isLocationLoading = true;
   int _selectedIndex = 1;
 
+  // Notification variables
+  List<Map<String, String>> _notifications = [];
+  RealtimeChannel? _subscription;
+
   @override
   void initState() {
     super.initState();
     _determinePosition(); 
-    _getProfile();        
+    _getProfile(); 
+    
+    // Starting to listen requests
+    _listenToMyRequestUpdates();
+  }
+
+  @override
+  void dispose() {
+    // Stop listening when you leave the page
+    if (_subscription != null) supabase.removeChannel(_subscription!);
+    super.dispose();
+  }
+
+  // Listen my reequest for -> (Accepted situation)
+  void _listenToMyRequestUpdates() {
+    final myUserId = supabase.auth.currentUser?.id;
+    if (myUserId == null) return;
+
+    _subscription = supabase.channel('public:requests:my_updates').onPostgresChanges(
+      event: PostgresChangeEvent.update,
+      schema: 'public',
+      table: 'requests',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'created_by',
+        value: myUserId,
+      ),
+      callback: (payload) {
+        final newRecord = payload.newRecord;
+        final oldRecord = payload.oldRecord;
+
+        //  If status has been 'accepted'
+        if (newRecord['status'] == 'accepted' && oldRecord['status'] != 'accepted') {
+          final category = newRecord['category'] ?? "Yardım";
+          final message = "$category talebinize bir Gönüllü atandı! Yardım yola çıkmak üzere.";
+          final time = "${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}";
+
+          if (mounted) {
+            setState(() {
+              _notifications.insert(0, {
+                'title': 'Gönüllü Atandı',
+                'body': message,
+                'time': time
+              });
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(children: [const Icon(Icons.check_circle, color: Colors.white), const SizedBox(width: 10), Expanded(child: Text(message))]), 
+                backgroundColor: Colors.green
+              ),
+            );
+          }
+        }
+      },
+    ).subscribe();
+  }
+
+  // Notification List function
+  void _showNotificationList() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        title: const Text("Bildirimler", style: TextStyle(color: Colors.white)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: _notifications.isEmpty
+              ? const Text("Henüz bir bildirim yok.", style: TextStyle(color: Colors.grey))
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _notifications.length,
+                  itemBuilder: (context, index) {
+                    final notif = _notifications[index];
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.notifications_active, color: Colors.green, size: 20),
+                      title: Text(notif['title']!, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                      subtitle: Text(notif['body']!, style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      trailing: Text(notif['time']!, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showNotificationDetail(notif['title']!, notif['body']!);
+                      },
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Kapat", style: TextStyle(color: Colors.white)))
+        ],
+      ),
+    );
+  }
+
+  void _showNotificationDetail(String title, String body) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF3E3B3B),
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: Text(body, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Tamam", style: TextStyle(color: Colors.green)))
+        ],
+      ),
+    );
   }
 
   // --- 1-)Profile Page ---
@@ -69,18 +182,16 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
       // Takes the position
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       
-      // --- WEB Control (Adress transition doesnt work on Web) ---
+      // --- WEB Control ---
       if (kIsWeb) {
         if(mounted) {
           setState(() {
-            // Just coordination  seems ob web cause of proventing to error
             _currentAddress = "${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}";
             _isLocationLoading = false;
           });
         }
         return; 
       }
-      // If mobile version is active show the location name
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
@@ -101,7 +212,6 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
     final userId = supabase.auth.currentUser?.id;
 
     // List of pages
-    // 0: Profile, 1: Homepage, 2: Settings
     List<Widget> pages = [
       const ProfilePage(),
       _buildHomeBody(userId),
@@ -138,56 +248,6 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
     );
   }
 
-  Widget _buildRequestCard(String title, String status, String timeString) {
-    String displayTime = timeString;
-    try {
-      final DateTime dt = DateTime.parse(timeString).toLocal();
-      displayTime = "${dt.hour}:${dt.minute.toString().padLeft(2, '0')} - ${dt.day}/${dt.month}";
-    } catch (e) { }
-
-    String statusText = "Bekleniyor";
-    if (status == 'accepted') statusText = "Gönüllü Atandı";
-    if (status == 'completed') statusText = "Tamamlandı";
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: const Color(0xFFA94442), borderRadius: BorderRadius.circular(20)),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
-            child: const Text("SOS", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.info_outline, size: 14, color: Colors.white70),
-                    const SizedBox(width: 4),
-                    Text("Durum : $statusText", style: const TextStyle(fontSize: 13, color: Colors.white)),
-                  ],
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time, size: 14, color: Colors.white70),
-                    const SizedBox(width: 4),
-                    Text(displayTime, style: const TextStyle(fontSize: 13, color: Colors.white70)),
-                  ],
-                ),
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
   Widget _buildHomeBody(String? userId) {
     return Column(
       children: [
@@ -210,7 +270,15 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
                   child: const Row(children: [Icon(Icons.swap_horiz, size: 18), SizedBox(width: 4), Text("Rolü değiştir")]),
                 ),
               ),
-              CircleAvatar(backgroundColor: Colors.grey[600], child: const Icon(Icons.notifications_none, color: Colors.black))
+              
+              // Responsive notification icon
+              InkWell(
+                onTap: _showNotificationList,
+                child: CircleAvatar(
+                  backgroundColor: _notifications.isNotEmpty ? Colors.redAccent : Colors.grey[600],
+                  child: Icon(Icons.notifications_active, color: Colors.black),
+                ),
+              )
             ],
           ),
         ),
@@ -325,6 +393,57 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildRequestCard(String title, String status, String timeString) {
+    String displayTime = timeString;
+    try {
+      final DateTime dt = DateTime.parse(timeString).toLocal();
+      displayTime = "${dt.hour}:${dt.minute.toString().padLeft(2, '0')} - ${dt.day}/${dt.month}";
+    } catch (e) { }
+
+    String statusText = "Bekleniyor";
+    if (status == 'accepted') statusText = "Gönüllü Atandı";
+    if (status == 'completed') statusText = "Tamamlandı";
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: const Color(0xFFA94442), borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
+            child: const Text("SOS", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.info_outline, size: 14, color: Colors.white70),
+                    const SizedBox(width: 4),
+                    Text("Durum : $statusText", style: const TextStyle(fontSize: 13, color: Colors.white)),
+                  ],
+                ),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 14, color: Colors.white70),
+                    const SizedBox(width: 4),
+                    Text(displayTime, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                  ],
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
     );
   }
 }

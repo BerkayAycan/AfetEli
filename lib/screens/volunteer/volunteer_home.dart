@@ -18,11 +18,120 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
   Position? _currentPosition;
   int _selectedIndex = 1;
 
+  // Notification variables
+  List<Map<String, String>> _notifications = [];
+  RealtimeChannel? _subscription;
+
   @override
   void initState() {
     super.initState();
     _determinePosition();
     _getProfile();
+    
+    // Starting to lisen requests
+    _listenToNewRequests();
+  }
+
+  @override
+  void dispose() {
+    // Stop listening when you leave the page.
+    if (_subscription != null) supabase.removeChannel(_subscription!);
+    super.dispose();
+  }
+
+  // Listen to new requests function
+  void _listenToNewRequests() {
+    _subscription = supabase.channel('public:requests').onPostgresChanges(
+      event: PostgresChangeEvent.insert, 
+      schema: 'public',
+      table: 'requests',
+      callback: (payload) {
+        final newReq = payload.newRecord;
+        
+        // Distance conrol for -> (30 km)
+        if (_currentPosition != null && newReq['lat'] != null && newReq['lng'] != null) {
+          double distanceInMeters = Geolocator.distanceBetween(
+            _currentPosition!.latitude, _currentPosition!.longitude, 
+            newReq['lat'], newReq['lng']
+          );
+
+          if (distanceInMeters <= 30000) {
+            String distMsg = distanceInMeters < 1000
+                ? "${distanceInMeters.toStringAsFixed(0)} m"
+                : "${(distanceInMeters / 1000).toStringAsFixed(1)} km";
+            
+            final category = newReq['category'] ?? "Yardım";
+            final fullMsg = "$distMsg uzaklıkta yeni bir $category talebi oluşturuldu.";
+            final time = "${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}";
+
+            if (mounted) {
+              setState(() {
+                _notifications.insert(0, {
+                  'title': 'Yeni Yardım Çağrısı',
+                  'body': fullMsg,
+                  'time': time
+                });
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("🔔 $fullMsg"), backgroundColor: Colors.redAccent),
+              );
+            }
+          }
+        }
+      },
+    ).subscribe();
+  }
+
+  // Notification list window
+  void _showNotificationList() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        title: const Text("Bildirimler", style: TextStyle(color: Colors.white)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: _notifications.isEmpty
+              ? const Text("Henüz bir çağrı yok.", style: TextStyle(color: Colors.grey))
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _notifications.length,
+                  itemBuilder: (context, index) {
+                    final notif = _notifications[index];
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
+                      title: Text(notif['title']!, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                      subtitle: Text(notif['body']!, style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      trailing: Text(notif['time']!, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showNotificationDetail(notif['title']!, notif['body']!);
+                      },
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Kapat", style: TextStyle(color: Colors.white)))
+        ],
+      ),
+    );
+  }
+
+  void _showNotificationDetail(String title, String body) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF3E3B3B),
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: Text(body, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Tamam", style: TextStyle(color: Colors.redAccent)))
+        ],
+      ),
+    );
   }
 
   // Get the Profile name
@@ -31,7 +140,7 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
       final userId = supabase.auth.currentUser!.id;
       final data = await supabase.from('users').select('first_name, last_name').eq('id', userId).single();
       if (mounted) setState(() => _userName = "${data['first_name']} ${data['last_name']}");
-    } catch (e) { /* S */ }
+    } catch (e) { }
   }
 
   // Find location
@@ -51,7 +160,6 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
 
   @override
   Widget build(BuildContext context) {
-    // Sayfaların Listesi
     List<Widget> pages = [
       const ProfilePage(),       
       _buildVolunteerBody(),     
@@ -60,7 +168,6 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF2C2C2C),
-      
       
       body: SafeArea(
         child: IndexedStack(
@@ -88,7 +195,6 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
   }
 
   Widget _buildVolunteerCard(Map<String, dynamic> req, String distance) {
-    // Time format
     String timeAgo = "Az önce";
     try {
       final created = DateTime.parse(req['created_at']).toLocal();
@@ -158,9 +264,9 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                   Icon(Icons.play_arrow, size: 16),
-                   SizedBox(width: 4),
-                   Text("Detayları Gör"),
+                    Icon(Icons.play_arrow, size: 16),
+                    SizedBox(width: 4),
+                    Text("Detayları Gör"),
                 ],
               ),
             ),
@@ -177,6 +283,7 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
       child: Row(children: [if (icon != null) Icon(icon, size: 18), if (icon != null) const SizedBox(width: 4), Text(text ?? "", style: const TextStyle(fontWeight: FontWeight.bold))]),
     );
   }
+  
   Widget _buildVolunteerBody() {
     return Column(
       children: [
@@ -191,11 +298,19 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
                 onTap: () => Navigator.pushReplacementNamed(context, '/role_choose'),
                 child: _buildHeaderChip("Rolü değiştir", icon: Icons.swap_horiz),
                ),
-               CircleAvatar(backgroundColor: Colors.grey[600], child: const Icon(Icons.notifications_none, color: Colors.black))
+               
+               // Responsive notification icon
+               InkWell(
+                 onTap: _showNotificationList,
+                 child: CircleAvatar(
+                   backgroundColor: _notifications.isNotEmpty ? Colors.redAccent : Colors.grey[600],
+                   child: Icon(Icons.notifications_active, color: Colors.black),
+                 ),
+               )
             ],
           ),
         ),
-
+        
         // Welcome message
         Container(
           width: double.infinity,
@@ -206,7 +321,7 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
         ),
         const SizedBox(height: 10),
 
-        // LLocation and search button
+        // Location and search button
         Container(
           width: double.infinity,
           margin: const EdgeInsets.symmetric(horizontal: 12),
