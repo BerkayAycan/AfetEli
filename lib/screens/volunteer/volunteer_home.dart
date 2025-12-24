@@ -5,6 +5,7 @@ import '../../main.dart';
 import 'request_detail_page.dart';
 import '../common/profile_page.dart';
 import '../common/settings_page.dart';
+import 'active_tasks_page.dart';
 
 class VolunteerHomepage extends StatefulWidget {
   const VolunteerHomepage({super.key});
@@ -163,7 +164,7 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
     List<Widget> pages = [
       const ProfilePage(),       
       _buildVolunteerBody(),     
-      const SettingsPage(),      
+      const ActiveTasksPage(),      
     ];
 
     return Scaffold(
@@ -188,7 +189,7 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Hesabım'),
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Anasayfa'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Ayarlar'),
+          BottomNavigationBarItem(icon: Icon(Icons.task), label: 'Görevlerim'),
         ],
       ),
     );

@@ -5,8 +5,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart'; 
 import '../common/profile_page.dart';
-import '../common/settings_page.dart';
-import 'create_request_page.dart';
+import 'my_requests_page.dart'; 
 
 class RequesterHomepage extends StatefulWidget {
   const RequesterHomepage({super.key});
@@ -42,7 +41,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
     super.dispose();
   }
 
-  // Listen my reequest for -> (Accepted situation)
+  // Liston to requests
   void _listenToMyRequestUpdates() {
     final myUserId = supabase.auth.currentUser?.id;
     if (myUserId == null) return;
@@ -51,36 +50,34 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
       event: PostgresChangeEvent.update,
       schema: 'public',
       table: 'requests',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'created_by',
-        value: myUserId,
-      ),
       callback: (payload) {
         final newRecord = payload.newRecord;
         final oldRecord = payload.oldRecord;
 
-        //  If status has been 'accepted'
-        if (newRecord['status'] == 'accepted' && oldRecord['status'] != 'accepted') {
-          final category = newRecord['category'] ?? "Yardım";
-          final message = "$category talebinize bir Gönüllü atandı! Yardım yola çıkmak üzere.";
-          final time = "${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}";
+        // 1-) Is my request ?
+        if (newRecord['created_by'] == myUserId) {
+           // 2-) Is status got 'accepted' ?
+           if (newRecord['status'] == 'accepted' && oldRecord['status'] != 'accepted') {
+            final category = newRecord['category'] ?? "Yardım";
+            final message = "$category talebinize bir Gönüllü atandı! Yardım yola çıkmak üzere.";
+            final time = "${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}";
 
-          if (mounted) {
-            setState(() {
-              _notifications.insert(0, {
-                'title': 'Gönüllü Atandı',
-                'body': message,
-                'time': time
+            if (mounted) {
+              setState(() {
+                _notifications.insert(0, {
+                  'title': 'Gönüllü Atandı',
+                  'body': message,
+                  'time': time
+                });
               });
-            });
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(children: [const Icon(Icons.check_circle, color: Colors.white), const SizedBox(width: 10), Expanded(child: Text(message))]), 
-                backgroundColor: Colors.green
-              ),
-            );
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(children: [const Icon(Icons.check_circle, color: Colors.white), const SizedBox(width: 10), Expanded(child: Text(message))]), 
+                  backgroundColor: Colors.green
+                ),
+              );
+            }
           }
         }
       },
@@ -215,7 +212,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
     List<Widget> pages = [
       const ProfilePage(),
       _buildHomeBody(userId),
-      const SettingsPage(),
+      const MyRequestsPage(),
     ];
 
     return Scaffold(
@@ -242,7 +239,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Hesabım'),
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Anasayfa'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Ayarlar'),
+          BottomNavigationBarItem(icon: Icon(Icons.history_edu), label: 'Taleplerim'),
         ],
       ),
     );
@@ -271,7 +268,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
                 ),
               ),
               
-              // Responsive notification icon
+              // Notification Icon
               InkWell(
                 onTap: _showNotificationList,
                 child: CircleAvatar(
@@ -326,7 +323,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
                 children: [
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: [Icon(Icons.mail_outline, color: Colors.white), SizedBox(width: 8), Text("Yardım Taleplerim", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))],
+                    children: [Icon(Icons.history, color: Colors.white), SizedBox(width: 8), Text("Geçmiş (Tamamlanan) Talepler", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))],
                   ),
                   const SizedBox(height: 15),
                   
@@ -346,10 +343,8 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text("Geçmiş Yardım Taleplerim", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-
-                  // List
+                  
+                  // Filtered list (Just Completed)
                   Expanded(
                     child: userId == null 
                     ? const Center(child: Text("Oturum Hatası")) 
@@ -367,19 +362,20 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
                             return const Center(child: CircularProgressIndicator());
                           }
                           
-                          final requests = snapshot.data!;
+                          final allRequests = snapshot.data!;
+                          final completedRequests = allRequests.where((r) => r['status'] == 'completed').toList();
 
-                          if (requests.isEmpty) {
-                            return const Center(child: Text("Henüz bir yardım talebiniz yok.", style: TextStyle(color: Colors.grey)));
+                          if (completedRequests.isEmpty) {
+                            return const Center(child: Text("Henüz tamamlanmış bir talebiniz yok.", style: TextStyle(color: Colors.grey)));
                           }
 
                           return ListView.builder(
-                            itemCount: requests.length,
+                            itemCount: completedRequests.length,
                             itemBuilder: (context, index) {
-                              final req = requests[index];
+                              final req = completedRequests[index];
                               return _buildRequestCard(
                                 req['category'] ?? 'Bilinmiyor',
-                                req['status'] ?? 'pending',
+                                req['status'] ?? 'completed',
                                 req['created_at'] ?? '',
                               );
                             },
@@ -396,6 +392,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
     );
   }
 
+  // Card Design
   Widget _buildRequestCard(String title, String status, String timeString) {
     String displayTime = timeString;
     try {
@@ -403,33 +400,35 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
       displayTime = "${dt.hour}:${dt.minute.toString().padLeft(2, '0')} - ${dt.day}/${dt.month}";
     } catch (e) { }
 
-    String statusText = "Bekleniyor";
-    if (status == 'accepted') statusText = "Gönüllü Atandı";
-    if (status == 'completed') statusText = "Tamamlandı";
+    const statusText = "Tamamlandı";
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: const Color(0xFFA94442), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2E7D32).withOpacity(0.4), 
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.green.withOpacity(0.3))
+      ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
-            child: const Text("SOS", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: const Icon(Icons.check, color: Colors.green, size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 const SizedBox(height: 4),
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 14, color: Colors.white70),
-                    const SizedBox(width: 4),
-                    Text("Durum : $statusText", style: const TextStyle(fontSize: 13, color: Colors.white)),
+                    Icon(Icons.info_outline, size: 14, color: Colors.white70),
+                    SizedBox(width: 4),
+                    Text("Durum : Tamamlandı", style: TextStyle(fontSize: 13, color: Colors.white)),
                   ],
                 ),
                 Row(

@@ -1,10 +1,7 @@
-// lib/screens/volunteer/request_detail_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_map/flutter_map.dart'; // Harita Paketi
-import 'package:latlong2/latlong.dart';      // Koordinat Paketi
-
+import 'package:flutter_map/flutter_map.dart'; 
+import 'package:latlong2/latlong.dart';      
 class RequestDetailPage extends StatefulWidget {
   final Map<String, dynamic> requestData;
 
@@ -17,24 +14,23 @@ class RequestDetailPage extends StatefulWidget {
 class _RequestDetailPageState extends State<RequestDetailPage> {
   bool _isLoading = false;
 
-  // --- HARİTAYI AÇAN FONKSİYON ---
+  // Function that opens map
   void _showMapModal(BuildContext context, double lat, double lng) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Tam boyuta yakın açılmasını sağlar
+      isScrollControlled: true, 
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
       ),
       builder: (context) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.6, // Ekranın %60'ı kadar
+          height: MediaQuery.of(context).size.height * 0.6, 
           decoration: const BoxDecoration(
             color: Color(0xFF2C2C2C),
             borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
           ),
           child: Column(
             children: [
-              // Modal Tutamacı (Gri Çizgi)
               const SizedBox(height: 10),
               Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(10))),
               const SizedBox(height: 10),
@@ -42,22 +38,22 @@ class _RequestDetailPageState extends State<RequestDetailPage> {
               const Text("Konum Bilgisi", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
 
-              // --- HARİTA ---
+              // Map
               Expanded(
-                child: ClipRRect( // Köşeleri yuvarlatmak için
+                child: ClipRRect( // For radius
                   borderRadius: const BorderRadius.all(Radius.circular(20)),
                   child: FlutterMap(
                     options: MapOptions(
-                      initialCenter: LatLng(lat, lng), // Merkeze al
-                      initialZoom: 15.0, // Yakınlaştırma seviyesi
+                      initialCenter: LatLng(lat, lng), 
+                      initialZoom: 15.0, // Initial zoom level
                     ),
                     children: [
-                      // 1. Harita Katmanı (OpenStreetMap)
+                      // 1-) Map layer (OpenStreetMap)
                       TileLayer(
                         urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.app',
                       ),
-                      // 2. İşaretçi (Marker) Katmanı
+                      // 2-) Marker layer
                       MarkerLayer(
                         markers: [
                           Marker(
@@ -78,7 +74,7 @@ class _RequestDetailPageState extends State<RequestDetailPage> {
                 ),
               ),
               
-              // Kapat Butonu
+              // Close button
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: SizedBox(
@@ -122,7 +118,7 @@ class _RequestDetailPageState extends State<RequestDetailPage> {
   @override
   Widget build(BuildContext context) {
     final req = widget.requestData;
-    // Koordinatları güvenli şekilde al
+    // Takes the coordinats securely
     final double lat = req['lat'] ?? 0.0;
     final double lng = req['lng'] ?? 0.0;
 
@@ -134,7 +130,7 @@ class _RequestDetailPageState extends State<RequestDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Kategori
+            // Category
             Container(
               padding: const EdgeInsets.all(12),
               width: double.infinity,
@@ -156,7 +152,7 @@ class _RequestDetailPageState extends State<RequestDetailPage> {
 
             const SizedBox(height: 30),
 
-            // --- KONUMU GÖR BUTONU (YENİ) ---
+            // See location button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -170,16 +166,16 @@ class _RequestDetailPageState extends State<RequestDetailPage> {
                 icon: const Icon(Icons.map, color: Colors.white),
                 label: const Text("Konumu Haritada Gör", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1976D2), // Mavi Renk
+                  backgroundColor: const Color(0xFF1976D2), 
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
 
-            const Spacer(), // Kalan boşluğu iterek "Kabul Et" butonunu en alta atar
+            const Spacer(),
 
-            // KABUL ET BUTONU
+            // Accept button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
