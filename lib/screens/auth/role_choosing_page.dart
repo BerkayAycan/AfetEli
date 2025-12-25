@@ -23,17 +23,26 @@ class _RoleChoosingPageState extends State<RoleChoosingPage> {
     try {
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser!.id;
+      // If role chosen volunteer, then make status 'pending' or leave null
+      String? status;
+      if (_selectedRole == 'volunteer') {
+        status = 'pending';
+      } else {
+        status = null;
+      }
 
-      // Saving the role to database
+      // Save the status and role to db
       await supabase.from('users').update({
-        'role': _selectedRole, 
+        'role': _selectedRole,
+        'volunteer_status': status,
       }).eq('id', userId);
 
-      // 2. Redirect the belonging page
+      // Redirection
       if (mounted) {
         if (_selectedRole == 'requester') {
           Navigator.of(context).pushNamedAndRemoveUntil('/requester_home', (route) => false);
         } else {
+          // If status 'approved' go to volunteer_home
           Navigator.of(context).pushNamedAndRemoveUntil('/volunteer_home', (route) => false);
         }
       }
@@ -94,7 +103,7 @@ class _RoleChoosingPageState extends State<RoleChoosingPage> {
               ),
             ),
             const SizedBox(height: 20),
-            const Center(child: Text("Bu seçimi daha sonra değiştirebilirsiniz.", style: TextStyle(color: Colors.grey))),
+            const Center(child: Text("Bu seçimi daha sonra değiştirebilirsiniz.(Eğer yalnızca sistem görevlisi tarafından onaylandıysanız gönüllü olarak giriş yapabilirsiniz!)", style: TextStyle(color: Colors.grey))),
           ],
         ),
       ),

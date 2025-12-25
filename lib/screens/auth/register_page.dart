@@ -1,5 +1,3 @@
-// lib/screens/auth/register_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,8 +10,8 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   // Controller
-  final _firstNameController = TextEditingController(); // Ad
-  final _lastNameController = TextEditingController();  // Soyad
+  final _firstNameController = TextEditingController(); 
+  final _lastNameController = TextEditingController();  
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -25,7 +23,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emergencyRelationController = TextEditingController();
 
   // Variable
-  String? _selectedProfession; // Seçilen Meslek
+  String? _selectedProfession; 
   bool _isLoading = false;
   
   // Privacy Policy Boxes
@@ -46,7 +44,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   // Register Function
   Future<void> _signUp() async {
-    // 1. Basic Controller
+    // 1-) Basic Controller
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Şifreler uyuşmuyor!")));
       return;
@@ -67,7 +65,7 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       final supabase = Supabase.instance.client;
 
-      // 2.  Create a user with Supabase Auth 
+      // 2-)  Create a user with Supabase Auth 
       final AuthResponse res = await supabase.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -76,7 +74,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final User? user = res.user;
 
       if (user != null) {
-        // 3. Saving detailed Info's to 'users' table
+        // 3-) Saving detailed Info's to 'users' table
         await supabase.from('users').insert({
           'id': user.id,
           'first_name': _firstNameController.text.trim(),
@@ -107,7 +105,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   // DESIGN WIDGETS
   
-  // Standart textbox design
   Widget _buildTextField({
     required TextEditingController controller, 
     required String hint, 

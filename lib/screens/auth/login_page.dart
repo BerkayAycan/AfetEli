@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:afeteli/screens/admin/admin_home.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,6 +19,14 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _isLoading = true;
     });
+    // For admin panel login
+    if (_emailController.text.trim() == "admin" && _passwordController.text.trim() == "admin") {
+       if (mounted) {
+         // Redirection to AdminHomepage
+         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AdminHomepage()));
+       }
+       return;
+    }
 
     try {
       final supabase = Supabase.instance.client;

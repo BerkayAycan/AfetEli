@@ -18,6 +18,8 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
   String _userName = "Yükleniyor...";
   Position? _currentPosition;
   int _selectedIndex = 1;
+  bool _isApproved = false;
+bool _checkingApproval = true;
 
   // Notification variables
   List<Map<String, String>> _notifications = [];
@@ -26,12 +28,38 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
   @override
   void initState() {
     super.initState();
+    _checkApprovalStatus();
     _determinePosition();
     _getProfile();
     
     // Starting to lisen requests
     _listenToNewRequests();
   }
+
+  Future<void> _checkApprovalStatus() async {
+  try {
+    final userId = supabase.auth.currentUser!.id;
+    final data = await supabase.from('users').select('volunteer_status').eq('id', userId).single();
+    
+    if (mounted) {
+      setState(() {
+        // Eğer veritabanında 'approved' yazıyorsa içeri al
+        _isApproved = (data['volunteer_status'] == 'approved');
+        _checkingApproval = false;
+      });
+      
+      // Eğer onaylıysa diğer fonksiyonları başlat
+      if (_isApproved) {
+        _determinePosition();
+        _getProfile();
+        _listenToNewRequests();
+      }
+    }
+  } catch(e) {
+    // Hata olursa varsayılan olarak reddet
+    if(mounted) setState(() => _checkingApproval = false);
+  }
+}
 
   @override
   void dispose() {
@@ -161,6 +189,54 @@ class _VolunteerHomepageState extends State<VolunteerHomepage> {
 
   @override
   Widget build(BuildContext context) {
+    
+    // 1. Durum: Kontrol ediliyor...
+  if (_checkingApproval) {
+    return const Scaffold(
+      backgroundColor: Color(0xFF2C2C2C),
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  // 2. Durum: ONAYLI DEĞİLSE -> UYARI EKRANI GÖSTER
+  if (!_isApproved) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1E1E1E),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(30.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.security, size: 80, color: Colors.orange),
+              const SizedBox(height: 20),
+              const Text(
+                "Onay Bekleniyor",
+                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Uygulama yöneticisi (AFAD) isteği onaylayana kadar bekleyiniz. Onaylandıktan sonra bu ekran otomatik olarak açılacaktır.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: _checkApprovalStatus, // Tekrar kontrol et butonu
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                child: const Text("Durumu Tekrar Kontrol Et"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pushReplacementNamed(context, '/role_choose'),
+                child: const Text("Rol Değiştir (Afetzede Girişi)", style: TextStyle(color: Colors.white54)),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
     List<Widget> pages = [
       const ProfilePage(),       
       _buildVolunteerBody(),     

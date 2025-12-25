@@ -135,7 +135,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
     );
   }
 
-  // --- 1-)Profile Page ---
+  // 1-)Profile Page
   Future<void> _getProfile() async {
     try {
       final userId = supabase.auth.currentUser!.id;
@@ -155,7 +155,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
     }
   }
 
-  // --- 2--Finding the position ---
+  // 2-) Finding the position 
   Future<void> _determinePosition() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -179,7 +179,7 @@ class _RequesterHomepageState extends State<RequesterHomepage> {
       // Takes the position
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       
-      // --- WEB Control ---
+      //  WEB Control
       if (kIsWeb) {
         if(mounted) {
           setState(() {
