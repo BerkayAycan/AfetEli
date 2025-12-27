@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_map/flutter_map.dart'; 
-import 'package:latlong2/latlong.dart';      
+import 'package:latlong2/latlong.dart';
+import '../../main.dart'; // To access the global 'supabase' client
+
 class RequestDetailPage extends StatefulWidget {
   final Map<String, dynamic> requestData;
 
@@ -12,7 +14,47 @@ class RequestDetailPage extends StatefulWidget {
 }
 
 class _RequestDetailPageState extends State<RequestDetailPage> {
+  // --- Variables ---
   bool _isLoading = false;
+  bool _isFetchingUser = true;
+  Map<String, dynamic>? _requesterInfo; // Stores detailed user info (Address, Blood Type, etc.)
+
+  // --- Lifecycle Methods ---
+  @override
+  void initState() {
+    super.initState();
+    _fetchRequesterDetails(); // Fetch user details when page loads
+  }
+
+  // --- Methods ---
+
+  // Fetch detailed info of the person who created the request from 'users' table
+  Future<void> _fetchRequesterDetails() async {
+    try {
+      final userId = widget.requestData['created_by'];
+      
+      // If user_id exists, fetch data from 'users' table
+      if (userId != null) {
+        final data = await supabase
+            .from('users')
+            .select()
+            .eq('id', userId)
+            .single();
+            
+        if (mounted) {
+          setState(() {
+            _requesterInfo = data;
+            _isFetchingUser = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isFetchingUser = false);
+      }
+    } catch (e) {
+      debugPrint("Error fetching user details: $e");
+      if (mounted) setState(() => _isFetchingUser = false);
+    }
+  }
 
   // Function that opens map
   void _showMapModal(BuildContext context, double lat, double lng) {
@@ -115,6 +157,31 @@ class _RequestDetailPageState extends State<RequestDetailPage> {
     }
   }
 
+  // Helper widget to build info rows cleanly
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.grey[400], size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+                children: [
+                  TextSpan(text: "$label: ", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                  TextSpan(text: value),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final req = widget.requestData;
@@ -150,7 +217,40 @@ class _RequestDetailPageState extends State<RequestDetailPage> {
             const SizedBox(height: 5),
             Text(req['description'] ?? 'Açıklama yok', style: const TextStyle(color: Colors.white, fontSize: 18)),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
+            const Divider(color: Colors.grey),
+            const SizedBox(height: 10),
+
+            // --- NEW SECTION: Requester Details (Fetched from 'users' table) ---
+            const Text("Talep Eden Kişi Bilgileri", style: TextStyle(color: Colors.orange, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            
+            // Show loading or data
+            _isFetchingUser 
+              ? const Center(child: CircularProgressIndicator()) 
+              : _requesterInfo == null 
+                  ? const Text("Kullanıcı bilgisi alınamadı.", style: TextStyle(color: Colors.grey))
+                  : Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2C2C2C),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[800]!),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildInfoRow(Icons.person, "Ad Soyad", "${_requesterInfo!['first_name']} ${_requesterInfo!['last_name']}"),
+                          _buildInfoRow(Icons.phone, "Telefon", "${_requesterInfo!['phone_number']}"),
+                          _buildInfoRow(Icons.bloodtype, "Kan Grubu", "${_requesterInfo!['blood_type'] ?? 'Belirtilmemiş'}"),
+                          // Address might be long, so it wraps automatically
+                          _buildInfoRow(Icons.location_city, "Adres", "${_requesterInfo!['address'] ?? 'Adres girilmemiş'}"),
+                          // Uncomment below if you want to show TC No
+                          // _buildInfoRow(Icons.badge, "TC No", "${_requesterInfo!['tc_no'] ?? '-'}"),
+                        ],
+                      ),
+                    ),
+
+            const SizedBox(height: 20),
 
             // See location button
             SizedBox(

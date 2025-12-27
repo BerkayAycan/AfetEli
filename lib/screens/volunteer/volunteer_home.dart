@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart'; 
 import 'request_detail_page.dart';
 import '../common/profile_page.dart';
-import '../common/settings_page.dart';
+//import '../common/settings_page.dart';
 import 'active_tasks_page.dart';
 
 class VolunteerHomepage extends StatefulWidget {
@@ -43,12 +43,12 @@ bool _checkingApproval = true;
     
     if (mounted) {
       setState(() {
-        // Eğer veritabanında 'approved' yazıyorsa içeri al
+        // If written 'approved on db go into the VolunteerHomepage
         _isApproved = (data['volunteer_status'] == 'approved');
         _checkingApproval = false;
       });
       
-      // Eğer onaylıysa diğer fonksiyonları başlat
+      // If is approved start other function
       if (_isApproved) {
         _determinePosition();
         _getProfile();
@@ -56,7 +56,7 @@ bool _checkingApproval = true;
       }
     }
   } catch(e) {
-    // Hata olursa varsayılan olarak reddet
+    // If failed, reject as default
     if(mounted) setState(() => _checkingApproval = false);
   }
 }
@@ -190,7 +190,7 @@ bool _checkingApproval = true;
   @override
   Widget build(BuildContext context) {
     
-    // 1. Durum: Kontrol ediliyor...
+    // 1. Situation: checking !
   if (_checkingApproval) {
     return const Scaffold(
       backgroundColor: Color(0xFF2C2C2C),
@@ -198,7 +198,7 @@ bool _checkingApproval = true;
     );
   }
 
-  // 2. Durum: ONAYLI DEĞİLSE -> UYARI EKRANI GÖSTER
+  // 2. Situation: If doesnt approved -> show warning message
   if (!_isApproved) {
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E1E),
@@ -222,13 +222,13 @@ bool _checkingApproval = true;
               ),
               const SizedBox(height: 30),
               ElevatedButton(
-                onPressed: _checkApprovalStatus, // Tekrar kontrol et butonu
+                onPressed: _checkApprovalStatus,
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
                 child: const Text("Durumu Tekrar Kontrol Et"),
               ),
               TextButton(
                 onPressed: () => Navigator.pushReplacementNamed(context, '/role_choose'),
-                child: const Text("Rol Değiştir (Afetzede Girişi)", style: TextStyle(color: Colors.white54)),
+                child: const Text("Rol Seçim Sayfasına Geri Dön", style: TextStyle(color: Colors.white54)),
               )
             ],
           ),

@@ -1,7 +1,5 @@
-// lib/screens/requester/my_requests_page.dart
-
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+//import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart';
 
 class MyRequestsPage extends StatefulWidget {
@@ -78,7 +76,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                   ),
                 ),
                 ...acceptedRequests.map((req) => _buildRequestCard(req, isAccepted: true)).toList(),
-                const SizedBox(height: 20), // Gruplar arası boşluk
+                const SizedBox(height: 20),
               ],
 
               // 2.Group : Waiting
@@ -121,7 +119,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                 Text(req['category'] ?? "Yardım", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: statusColor.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
                   child: Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold)),
                 )
               ],

@@ -11,18 +11,30 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  // Controller
+  // --- Controllers ---
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _professionController = TextEditingController();
   
-  // To change password
+  // NEW V2 FIELDS
+  final _tcController = TextEditingController();
+  final _addressController = TextEditingController();
+  
+  // --- Password Controllers ---
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
 
+  // --- Variables ---
   bool _isLoading = false;
   String _email = "";
+  String? _selectedBloodType; // For Dropdown
+
+  // Blood Type List
+  final List<String> _bloodTypes = [
+    'A Rh+', 'A Rh-', 'B Rh+', 'B Rh-', 
+    'AB Rh+', 'AB Rh-', '0 Rh+', '0 Rh-'
+  ];
 
   @override
   void initState() {
@@ -30,7 +42,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _getProfile();
   }
 
-  // 1-) Get the data from database(Supabase)
+  // 1-) Get the data from database (Supabase)
   Future<void> _getProfile() async {
     setState(() => _isLoading = true);
     try {
@@ -39,12 +51,24 @@ class _ProfilePageState extends State<ProfilePage> {
       
       if (user != null) {
         _email = user.email ?? "";
+        
+        // Fetch user data
         final data = await supabase.from('users').select().eq('id', user.id).single();
         
+        // Populate controllers
         _firstNameController.text = data['first_name'] ?? "";
         _lastNameController.text = data['last_name'] ?? "";
         _phoneController.text = data['phone_number'] ?? "";
         _professionController.text = data['profession'] ?? "";
+        
+        // Populate V2 fields
+        _tcController.text = data['tc_no'] ?? "";
+        _addressController.text = data['address'] ?? "";
+        
+        // Set blood type if it exists in our list
+        if (data['blood_type'] != null && _bloodTypes.contains(data['blood_type'])) {
+          _selectedBloodType = data['blood_type'];
+        }
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Hata: $e")));
@@ -65,6 +89,10 @@ class _ProfilePageState extends State<ProfilePage> {
         'last_name': _lastNameController.text.trim(),
         'phone_number': _phoneController.text.trim(),
         'profession': _professionController.text.trim(),
+        // Update V2 fields
+        'tc_no': _tcController.text.trim(),
+        'address': _addressController.text.trim(),
+        'blood_type': _selectedBloodType,
       }).eq('id', userId);
 
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bilgiler güncellendi!"), backgroundColor: Colors.green));
@@ -87,13 +115,13 @@ class _ProfilePageState extends State<ProfilePage> {
       final supabase = Supabase.instance.client;
       final email = supabase.auth.currentUser!.email!;
 
-      // A) Firstly, control that actual password is true with entering acc
+      // A) Verify old password
       await supabase.auth.signInWithPassword(
         email: email,
         password: _oldPasswordController.text,
       );
 
-      // B) If password is true, change the password
+      // B) Update to new password
       await supabase.auth.updateUser(
         UserAttributes(password: _newPasswordController.text),
       );
@@ -148,14 +176,38 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 10),
                   _buildTextField("Ad", _firstNameController),
                   _buildTextField("Soyad", _lastNameController),
-                  _buildTextField("Telefon", _phoneController),
-                  _buildTextField("Meslek", _professionController),
+                  _buildTextField("TC Kimlik No", _tcController, keyboardType: TextInputType.number),
+                  
+                  // Meslek ve Kan Grubu yan yana (Register'daki gibi)
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _buildTextField("Meslek", _professionController),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: _buildDropdown("Kan Grubu", _selectedBloodType, _bloodTypes, (v) => setState(() => _selectedBloodType = v)),
+                      ),
+                    ],
+                  ),
+
+                  _buildTextField("Telefon", _phoneController, keyboardType: TextInputType.phone),
+                  
+                  // Adres Alanı
+                  _buildTextField("Adres", _addressController, maxLines: 3),
+                  
+                  const SizedBox(height: 10),
                   
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _updateInfo,
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF673AB7)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF673AB7),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
                       child: const Text("Bilgileri Güncelle"),
                     ),
                   ),
@@ -172,7 +224,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _changePassword,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[700]),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[700],
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
                       child: const Text("Şifreyi Değiştir"),
                     ),
                   ),
@@ -208,19 +263,54 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool isPassword = false}) {
+  // Updated TextField Builder with more options
+  Widget _buildTextField(String label, TextEditingController controller, {bool isPassword = false, TextInputType keyboardType = TextInputType.text, int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: TextField(
         controller: controller,
         obscureText: isPassword,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(color: Colors.grey),
+          alignLabelWithHint: maxLines > 1, // Label'ı çok satırlıda yukarı hizalar
           filled: true,
           fillColor: Colors.grey[800],
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        ),
+      ),
+    );
+  }
+
+  // Dropdown Builder for Blood Type
+  Widget _buildDropdown(String label, String? value, List<String> items, Function(String?) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.grey[800],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value,
+            hint: Text(label, style: const TextStyle(color: Colors.grey)),
+            isExpanded: true,
+            dropdownColor: Colors.grey[800],
+            style: const TextStyle(color: Colors.white),
+            icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+            items: items.map((String item) {
+              return DropdownMenuItem<String>(
+                value: item,
+                child: Text(item),
+              );
+            }).toList(),
+            onChanged: onChanged,
+          ),
         ),
       ),
     );

@@ -8,7 +8,7 @@ import 'screens/requester/requester_home.dart';
 import 'screens/volunteer/volunteer_home.dart';
 import 'screens/requester/create_request_page.dart';
 import 'screens/common/profile_page.dart';
-import 'screens/common/settings_page.dart';
+//import 'screens/common/settings_page.dart';
 import 'screens/admin/admin_home.dart';
 
 void main() async {
@@ -47,7 +47,7 @@ class AfetEliApp extends StatelessWidget {
         '/volunteer_home': (context) => const VolunteerHomepage(),
         '/create_request': (context) => const CreateRequestPage(),
         '/profile': (context) => const ProfilePage(),
-        '/settings': (context) => const SettingsPage(),
+        //'/settings': (context) => const SettingsPage(),
         'admin_home': (context) => const AdminHomepage(), 
       },
     );

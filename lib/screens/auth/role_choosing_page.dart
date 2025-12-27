@@ -1,3 +1,5 @@
+// lib/screens/auth/role_choosing_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -23,18 +25,35 @@ class _RoleChoosingPageState extends State<RoleChoosingPage> {
     try {
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser!.id;
-      // If role chosen volunteer, then make status 'pending' or leave null
-      String? status;
+      
+      String? statusToSave;
+
+      // LOGIC UPDATE: Check current status before overwriting it
       if (_selectedRole == 'volunteer') {
-        status = 'pending';
+        // 1. Fetch current status from DB
+        final data = await supabase
+            .from('users')
+            .select('volunteer_status')
+            .eq('id', userId)
+            .single();
+        
+        final currentStatus = data['volunteer_status'];
+
+        // 2. If already 'approved', keep it 'approved'. Otherwise set to 'pending'.
+        if (currentStatus == 'approved') {
+          statusToSave = 'approved'; 
+        } else {
+          statusToSave = 'pending';
+        }
       } else {
-        status = null;
+        // If requester, status is null
+        statusToSave = null;
       }
 
       // Save the status and role to db
       await supabase.from('users').update({
         'role': _selectedRole,
-        'volunteer_status': status,
+        'volunteer_status': statusToSave,
       }).eq('id', userId);
 
       // Redirection
@@ -42,7 +61,7 @@ class _RoleChoosingPageState extends State<RoleChoosingPage> {
         if (_selectedRole == 'requester') {
           Navigator.of(context).pushNamedAndRemoveUntil('/requester_home', (route) => false);
         } else {
-          // If status 'approved' go to volunteer_home
+          // Navigate to volunteer home (It will check status there)
           Navigator.of(context).pushNamedAndRemoveUntil('/volunteer_home', (route) => false);
         }
       }
@@ -117,7 +136,7 @@ class _RoleChoosingPageState extends State<RoleChoosingPage> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF673AB7).withOpacity(0.2) : Colors.grey[800],
+          color: isSelected ? const Color(0xFF673AB7).withValues(alpha: 0.2) : Colors.grey[800], // Updated withValues for newer Flutter versions
           border: Border.all(
             color: isSelected ? const Color(0xFF673AB7) : Colors.transparent,
             width: 2,
